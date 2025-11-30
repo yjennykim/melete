@@ -8,25 +8,44 @@ import ArgumentParser
 
 @main
 struct melete: ParsableCommand {
-    func displayMenu() {
+    func displayMenu(state: SessionState) {
         print("melete Options")
-        print("1. Start Session")
-        print("2. End Session")
+
+        switch state {
+        case .notStarted:
+            print("1. Start Session")
+        case .paused:
+            print("1. Resume Session")
+        case .running:
+            print("1. View Session (already running)")
+        }
+
+        print("2. Pause Session")
+        print("3. End Session")
+        print("X. Quit Melete")
     }
 
     mutating func run() throws {
         let manager = SessionManager()
-        displayMenu()
+        displayMenu(state: manager.state)
 
         while let line = readLine() {
             let number = Int(line.trimmingCharacters(in: .whitespacesAndNewlines))
             if number == 1 {
-                manager.start()
+                if manager.state == .running {
+                    manager.view()
+                } else {
+                    manager.start()
+                }
             } else if number == 2 {
+                manager.pause()
+            } else if number == 3 {
                 manager.end()
+            } else {
+                return
             }
 
-            displayMenu()
+            displayMenu(state: manager.state)
         }
     }
 }

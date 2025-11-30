@@ -6,6 +6,7 @@ struct Session {
     var endDate: Date?
     var endTs: Int64?
     var notes: String?
+    var accumulatedTs: Int64 = 0
 
     private func getCurrentTs() -> (currTs: TimeInterval, currDate: Date) {
         let currentDate = Date()
@@ -15,12 +16,8 @@ struct Session {
         return (msSince1970, currentDate)
     }
 
-    private func convertTimeIntervalToString() -> String {
-        guard let endTs = endTs, let startTs = startTs else {
-            return "Ongoing session"
-        }
-
-        var seconds = (endTs - startTs) / 1000
+    private func getEndedSessionLengthAsString() -> String {
+        var seconds = accumulatedTs / 1000
         let hours = seconds / 3600
         seconds = seconds % 3600
 
@@ -30,10 +27,30 @@ struct Session {
         return "\(hours)hr \(minutes)min \(seconds)s"
     }
 
+    func getCurrentDuration() -> String {
+        var totalMs = accumulatedTs
+
+        // If currently running, add time since last start/resume
+        if let startTs = startTs {
+            let timeInfo = getCurrentTs()
+            totalMs += (Int64(timeInfo.currTs) - startTs)
+        }
+
+        var seconds = totalMs / 1000
+        let hours = seconds / 3600
+        seconds = seconds % 3600
+        let minutes = seconds / 60
+        seconds = seconds % 60
+
+        return "\(hours)hr \(minutes)min \(seconds)s"
+    }
+
     mutating func start() {
         let timeInfo = getCurrentTs()
         startTs = Int64(timeInfo.currTs)
-        startDate = timeInfo.currDate
+        if startDate == nil {
+            startDate = timeInfo.currDate
+        }
     }
 
     mutating func end() {
@@ -41,7 +58,24 @@ struct Session {
         endTs = Int64(timeInfo.currTs)
         endDate = timeInfo.currDate
 
-        let timeString = convertTimeIntervalToString()
-        print("Session Length: \(timeString)")
+        if let startTs = startTs {
+            accumulatedTs += (Int64(timeInfo.currTs) - startTs)
+        }
+        let timeString = getEndedSessionLengthAsString()
+    }
+
+    mutating func pause() {
+        // make sure start time is set
+        guard let startTs = startTs else {
+            print("Already paused...")
+            return
+        }
+        let timeInfo = getCurrentTs()
+
+        // add time since last start / resume
+        accumulatedTs += (Int64(timeInfo.currTs) - startTs)
+
+        // clear startTs to indicate pause
+        self.startTs = nil
     }
 }
